@@ -1,486 +1,529 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  ChevronRight, Leaf, ShieldCheck, Clock, CheckCircle2, X, 
-  Instagram, Linkedin, ArrowRight, Activity, Zap, HeartPulse, 
-  TrendingUp, Play, Pause, Calendar, Package, MessageSquare,
-  Headphones, TrendingDown, Stethoscope, ClipboardList, CreditCard, 
-  UserCircle, Gem, Sparkles, LogOut, Bell
-} from 'lucide-react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriDesk | Precision Metabolic Nutrition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0A0C10; color: #E5E7EB; scroll-behavior: smooth; }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .glass-gold { background: rgba(197, 163, 88, 0.05); border: 1px solid rgba(197, 163, 88, 0.2); }
+        .text-gold { color: #C5A358; }
+        .bg-gold { background-color: #C5A358; }
+        .border-gold { border-color: #C5A358; }
+        .view-section { display: none; }
+        .view-section.active { display: block; animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .hide-scroll::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="overflow-x-hidden">
 
-// --- CONFIGURATION ---
-const firebaseConfig = JSON.parse(__firebase_config);
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-const PLANS = [
-  { 
-    id: 'monthly', 
-    name: 'Essential Monthly', 
-    price: 8999, 
-    discountedPrice: 8549,
-    tenure: '1 Month',
-    isElite: false,
-    features: ['22 Organic Meals', 'Biodegradable Kit', 'Dietitian Chat Access'],
-    consultFee: 750
-  },
-  { 
-    id: 'quarterly', 
-    name: 'Executive Quarterly', 
-    price: 24999, 
-    discountedPrice: 21249,
-    tenure: '3 Months',
-    isElite: true,
-    highlight: true,
-    features: ['66 Organic Meals', '15-Day Pause Option', 'Unlimited Clinical Consults'],
-    consultFee: 0
-  },
-  { 
-    id: 'yearly', 
-    name: 'Elite Annual', 
-    price: 89999, 
-    discountedPrice: 71999,
-    tenure: '12 Months',
-    isElite: true,
-    features: ['264 Organic Meals', '60-Day Pause Option', 'Personal Health Concierge'],
-    consultFee: 0
-  }
-];
-
-export default function App() {
-  // Navigation & View State
-  const [view, setView] = useState('home'); 
-  const [userRole, setUserRole] = useState('customer'); // 'customer' or 'dietitian'
-  const [activeSub, setActiveSub] = useState(null);
-  
-  // UI State
-  const [isPaused, setIsPaused] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const [modals, setModals] = useState({ chat: false, concierge: false, booking: false, success: false });
-  const [selectedDietitian, setSelectedDietitian] = useState(null);
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // --- Handlers ---
-  const handleSubscribe = (plan) => {
-    setActiveSub(plan);
-    setView('dashboard');
-    window.scrollTo(0, 0);
-  };
-
-  const toggleModal = (key, val) => setModals(prev => ({ ...prev, [key]: val }));
-
-  const handleBooking = () => {
-    toggleModal('booking', false);
-    toggleModal('success', true);
-    setTimeout(() => toggleModal('success', false), 3000);
-  };
-
-  // --- Components ---
-  const Nav = () => (
-    <nav className={`fixed w-full z-50 transition-all duration-300 px-6 py-4 ${scrolled ? 'top-0' : 'top-4'}`}>
-      <div className={`max-w-7xl mx-auto px-8 h-20 rounded-[2rem] flex justify-between items-center ${scrolled ? 'bg-black/80 backdrop-blur-xl border border-white/10' : 'bg-transparent'}`}>
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('home')}>
-          <div className="bg-emerald-500 p-2 rounded-xl"><Leaf className="text-white w-6 h-6" /></div>
-          <div className="flex flex-col">
-            <span className="text-xl font-black text-white tracking-tighter uppercase leading-none">NUTRI<span className="text-[#C5A358]">DESK</span></span>
-            <span className="text-[7px] font-bold text-gray-500 tracking-[0.3em] uppercase">Pvt Ltd</span>
-          </div>
-        </div>
-
-        <div className="hidden md:flex items-center gap-8">
-          <button onClick={() => setView('home')} className={`text-[10px] font-black uppercase tracking-widest ${view === 'home' ? 'text-[#C5A358]' : 'text-gray-400'}`}>Home</button>
-          <button onClick={() => setView('plans')} className={`text-[10px] font-black uppercase tracking-widest ${view === 'plans' ? 'text-[#C5A358]' : 'text-gray-400'}`}>Tenure Plans</button>
-          <button onClick={() => setView('analysis')} className={`text-[10px] font-black uppercase tracking-widest ${view === 'analysis' ? 'text-[#C5A358]' : 'text-gray-400'}`}>Spend Analysis</button>
-          
-          <div className="h-6 w-[1px] bg-white/10 mx-2"></div>
-          
-          {activeSub ? (
-            <button onClick={() => setView('dashboard')} className="flex items-center gap-2 bg-[#C5A358]/10 text-[#C5A358] px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[#C5A358]/20">
-              <UserCircle size={14}/> Dashboard
-            </button>
-          ) : (
-            <button onClick={() => setView('plans')} className="bg-[#C5A358] text-black px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all">Join Elite</button>
-          )}
-
-          <button 
-            onClick={() => setUserRole(prev => prev === 'customer' ? 'dietitian' : 'customer')}
-            className="flex items-center gap-2 text-emerald-500 hover:text-emerald-400 text-[9px] font-black uppercase tracking-widest"
-          >
-            <ShieldCheck size={14}/> {userRole === 'customer' ? 'Expert Access' : 'User View'}
-          </button>
-        </div>
-      </div>
-    </nav>
-  );
-
-  return (
-    <div className="min-h-screen bg-[#0A0C10] text-gray-100 font-sans selection:bg-[#C5A358]/30 overflow-x-hidden">
-      <Nav />
-
-      {/* VIEW: HOME */}
-      {view === 'home' && (
-        <div className="pt-32 pb-20">
-          <header className="max-w-7xl mx-auto px-6 min-h-[80vh] flex flex-col items-center justify-center text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full mb-8">
-              <Sparkles size={14} className="text-[#C5A358]"/>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Clinical-Grade Organic Nutrition</span>
-            </div>
-            <h1 className="text-6xl md:text-8xl font-black text-white leading-[1.1] mb-8 tracking-tighter uppercase">
-              Precision <br/> <span className="text-[#C5A358]">Fuel</span> for <br/> Elite Minds.
-            </h1>
-            <p className="max-w-xl text-gray-400 text-lg mb-12 leading-relaxed">
-              Tailored metabolic nutrition for the IT workforce. Zero plastic. Scientifically audited. Dietitian-backed ecosystem.
-            </p>
-            <div className="flex flex-col sm:row items-center gap-4">
-              <button onClick={() => setView('plans')} className="px-12 py-5 bg-[#C5A358] text-black rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 transition-all flex items-center gap-3">
-                Select Your Plan <ArrowRight size={18}/>
-              </button>
-              <button onClick={() => setView('analysis')} className="px-12 py-5 bg-white/5 border border-white/10 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-white/10 transition-all">
-                Spend Analysis
-              </button>
-            </div>
-          </header>
-        </div>
-      )}
-
-      {/* VIEW: PLANS */}
-      {view === 'plans' && (
-        <div className="pt-40 pb-32 px-6 max-w-7xl mx-auto">
-          <div className="text-center mb-20">
-            <h2 className="text-5xl font-black text-white mb-6 uppercase tracking-tighter">Tenure-Based <span className="text-[#C5A358]">Exclusives.</span></h2>
-            <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.3em]">Special introductory discounts for short and long-term subscriptions</p>
-          </div>
-          <div className="grid lg:grid-cols-3 gap-8">
-            {PLANS.map(plan => (
-              <div key={plan.id} className={`p-10 rounded-[2.5rem] border bg-white/5 backdrop-blur-xl relative flex flex-col transition-all duration-500 hover:scale-[1.02] ${plan.highlight ? 'border-[#C5A358]/50 ring-1 ring-[#C5A358]/20' : 'border-white/10'}`}>
-                {plan.highlight && <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#C5A358] text-black px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest">Most Popular</div>}
-                <div className="mb-12">
-                   <h3 className="text-2xl font-bold text-white mb-2">{plan.name}</h3>
-                   <span className="text-[10px] font-black text-[#C5A358] uppercase tracking-widest">{plan.tenure}</span>
+    <!-- NAVIGATION -->
+    <nav id="navbar" class="fixed w-full z-50 transition-all duration-300 px-6 py-4 top-4">
+        <div class="max-w-7xl mx-auto px-8 h-20 rounded-[2rem] glass flex justify-between items-center shadow-2xl">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="showView('home')">
+                <div class="bg-emerald-500 p-2 rounded-xl text-white">
+                    <i data-lucide="leaf"></i>
                 </div>
-                <div className="mb-10">
-                   <div className="flex items-end gap-2">
-                     <span className="text-5xl font-black text-white">₹{plan.discountedPrice.toLocaleString()}</span>
-                     <span className="text-xs line-through text-gray-600 font-bold mb-2">₹{plan.price.toLocaleString()}</span>
-                   </div>
-                   <p className="text-[10px] text-emerald-500 font-bold uppercase mt-2">Limited Time Discount Applied</p>
+                <div class="flex flex-col leading-none">
+                    <span class="text-xl font-black text-white tracking-tighter uppercase">NUTRI<span class="text-gold">DESK</span></span>
+                    <span class="text-[7px] font-bold text-gray-500 tracking-[0.3em] uppercase">Pvt Ltd</span>
                 </div>
-                <ul className="space-y-4 mb-12 flex-1">
-                  {plan.features.map((f, i) => (
-                    <li key={i} className="flex items-center gap-3 text-sm text-gray-400 font-medium">
-                      <CheckCircle2 size={16} className="text-[#C5A358]"/> {f}
-                    </li>
-                  ))}
-                  <li className={`flex items-center gap-3 text-sm font-bold ${plan.isElite ? 'text-[#C5A358]' : 'text-gray-600'}`}>
-                    <Stethoscope size={16} /> {plan.isElite ? 'Free Clinical Concierge' : 'Paid Consultation Available'}
-                  </li>
-                </ul>
-                <button onClick={() => handleSubscribe(plan)} className="w-full py-5 bg-white text-black rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-[#C5A358] transition-all">Start Subscription</button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* VIEW: CUSTOMER DASHBOARD */}
-      {view === 'dashboard' && userRole === 'customer' && (
-        <div className="pt-40 pb-32 px-6 max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-3 gap-10">
-            {/* Main Column */}
-            <div className="lg:col-span-2 space-y-8">
-              <div className="p-10 rounded-[2.5rem] bg-gradient-to-br from-[#C5A358]/20 to-transparent border border-[#C5A358]/20 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8"><Gem className="text-[#C5A358] opacity-20 w-16 h-16"/></div>
-                <div className="relative z-10">
-                  <p className="text-[10px] font-black text-[#C5A358] uppercase tracking-[0.3em] mb-4">Elite Personal Health Portal</p>
-                  <h2 className="text-4xl font-black text-white mb-8">{activeSub?.name || 'Executive Quarterly'}</h2>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="p-5 rounded-2xl bg-black/40 border border-white/5 text-center">
-                      <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-2">NutriScore</p>
-                      <p className="text-2xl font-black text-emerald-500">9.4<span className="text-xs text-gray-600">/10</span></p>
-                    </div>
-                    <div className="p-5 rounded-2xl bg-black/40 border border-white/5 text-center">
-                      <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-2">Meals Left</p>
-                      <p className="text-2xl font-black text-white">42<span className="text-xs text-gray-600">/66</span></p>
-                    </div>
-                    <div className="p-5 rounded-2xl bg-black/40 border border-white/5 text-center">
-                      <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-2">Wellness ROI</p>
-                      <p className="text-2xl font-black text-[#C5A358]">12.4x</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-8">
-                <div className="p-8 rounded-3xl bg-white/5 border border-white/10">
-                  <h4 className="font-black text-white uppercase tracking-widest flex items-center gap-3 mb-6"><Activity size={18} className="text-emerald-500"/> Metabolic Trend</h4>
-                  <div className="h-40 flex items-end gap-2 mb-4">
-                    {[40, 70, 50, 90, 60, 80, 75].map((h, i) => (
-                      <div key={i} className="flex-1 bg-emerald-500/20 rounded-t-lg hover:bg-emerald-500 transition-all" style={{ height: `${h}%` }}></div>
-                    ))}
-                  </div>
-                  <div className="flex justify-between text-[9px] font-bold text-gray-600">
-                    <span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span>
-                  </div>
-                </div>
-                <div className="p-8 rounded-3xl bg-white/5 border border-white/10 flex flex-col">
-                  <h4 className="font-black text-white uppercase tracking-widest flex items-center gap-3 mb-6"><Stethoscope size={18} className="text-[#C5A358]"/> Clinical Concierge</h4>
-                  <p className="text-xs text-gray-500 leading-relaxed mb-8">
-                    {activeSub?.isElite 
-                      ? "As an Elite subscriber, your appointments with senior clinical dietitians are complimentary."
-                      : "Book a one-on-one session with our clinical staff for metabolic audit."}
-                  </p>
-                  <button onClick={() => toggleModal('booking', true)} className="mt-auto w-full py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all">
-                    {activeSub?.isElite ? 'Schedule Free Consult' : 'Book Consult (₹750)'}
-                  </button>
-                </div>
-              </div>
             </div>
 
-            {/* Sidebar */}
-            <div className="space-y-8">
-              <div className="p-8 rounded-3xl bg-white/5 border border-white/10">
-                <h4 className="font-black text-white uppercase tracking-widest mb-6">Delivery Status</h4>
-                <div className="flex items-center gap-4 p-4 rounded-2xl bg-black/40 border border-white/5 mb-6">
-                   <div className="p-2 bg-emerald-500/20 text-emerald-500 rounded-lg"><Truck size={20}/></div>
-                   <div>
-                      <p className="text-xs font-bold text-white">Next Meal: 08:30 AM</p>
-                      <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Kavuri Hills Kitchen</p>
-                   </div>
-                </div>
-                {activeSub?.canPause !== false && (
-                   <button onClick={() => setIsPaused(!isPaused)} className={`w-full py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${isPaused ? 'bg-emerald-500 text-white' : 'bg-white/5 text-[#C5A358] border border-[#C5A358]/20'}`}>
-                      {isPaused ? <><Play size={12} className="inline mr-2"/> Resume Delivery</> : <><Pause size={12} className="inline mr-2"/> Pause Subscription</>}
-                   </button>
-                )}
-              </div>
-
-              <div className="p-8 rounded-3xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white">
-                <h4 className="font-black uppercase tracking-tighter text-xl mb-2">Need Help?</h4>
-                <p className="text-sm opacity-80 mb-8 font-medium">Direct line to our kitchen and logistics support team.</p>
-                <button onClick={() => toggleModal('chat', true)} className="w-full py-4 bg-black rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2">
-                  <MessageSquare size={16}/> Live Chat Now
+            <div class="hidden md:flex items-center gap-8">
+                <button onclick="showView('home')" class="nav-link text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white transition-all">Home</button>
+                <button onclick="showView('plans')" class="nav-link text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white transition-all">Plans</button>
+                <button onclick="showView('analysis')" class="nav-link text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white transition-all">Analysis</button>
+                
+                <div class="h-6 w-[1px] bg-white/10 mx-2"></div>
+                
+                <button id="dashboard-nav-btn" onclick="showView('dashboard')" class="hidden flex items-center gap-2 text-gold px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-gold/20 hover:bg-gold/10 transition-all">
+                    <i data-lucide="user-circle" class="w-4 h-4"></i> Dashboard
                 </button>
-              </div>
+                
+                <button id="join-nav-btn" onclick="showView('plans')" class="bg-gold text-black px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all">Join Elite</button>
+                
+                <button onclick="toggleUserRole()" class="flex items-center gap-2 text-emerald-500 text-[9px] font-black uppercase tracking-widest hover:text-emerald-400 transition-all">
+                    <i data-lucide="shield-check" class="w-4 h-4"></i> <span id="role-toggle-text">Expert Access</span>
+                </button>
             </div>
-          </div>
         </div>
-      )}
+    </nav>
 
-      {/* VIEW: DIETITIAN PANEL */}
-      {view === 'dashboard' && userRole === 'dietitian' && (
-        <div className="pt-40 pb-32 px-6 max-w-7xl mx-auto">
-           <div className="flex justify-between items-end mb-12">
-              <div>
-                <p className="text-[#C5A358] text-[10px] font-black uppercase tracking-[0.3em] mb-2">Clinical Staff Command</p>
-                <h2 className="text-5xl font-black text-white uppercase tracking-tighter">Dietitian <span className="text-emerald-500">Panel.</span></h2>
-              </div>
-              <div className="bg-white/5 border border-white/10 p-3 rounded-2xl flex items-center gap-4">
-                 <div className="text-right">
-                    <p className="text-xs font-black text-white">Dr. Arvind K.</p>
-                    <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Senior Clinical Expert</p>
-                 </div>
-                 <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center text-emerald-500"><Stethoscope size={20}/></div>
-              </div>
-           </div>
+    <!-- VIEW: HOME -->
+    <section id="view-home" class="view-section active pt-32 min-h-screen flex items-center justify-center px-6">
+        <div class="max-w-7xl mx-auto text-center">
+            <div class="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full mb-8">
+                <i data-lucide="sparkles" class="w-4 h-4 text-gold"></i>
+                <span class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Clinical-Grade Organic Nutrition</span>
+            </div>
+            <h1 class="text-6xl md:text-8xl font-black text-white leading-[1.1] mb-8 tracking-tighter uppercase">
+                Precision <br/> <span class="text-gold">Fuel</span> for <br/> Elite Minds.
+            </h1>
+            <p class="max-w-xl mx-auto text-gray-400 text-lg mb-12 leading-relaxed font-medium">
+                Tailored metabolic nutrition for the IT workforce. Zero plastic. Scientifically audited. Dietitian-backed ecosystem.
+            </p>
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <button onclick="showView('plans')" class="px-12 py-5 bg-gold text-black rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 transition-all flex items-center gap-3">
+                    Select Your Plan <i data-lucide="arrow-right"></i>
+                </button>
+                <button onclick="showView('analysis')" class="px-12 py-5 glass text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-white/10 transition-all">
+                    Spend Analysis
+                </button>
+            </div>
+        </div>
+    </section>
 
-           <div className="grid lg:grid-cols-4 gap-8">
-              <div className="lg:col-span-3 p-8 rounded-[2.5rem] bg-white/5 border border-white/10">
-                 <div className="flex justify-between items-center mb-8">
-                    <h4 className="font-black text-white uppercase tracking-widest flex items-center gap-3"><ClipboardList size={18}/> Active Patient Load</h4>
-                    <span className="text-[10px] font-bold text-emerald-500 px-3 py-1 bg-emerald-500/10 rounded-full">14 Consults Pending</span>
-                 </div>
-                 <div className="space-y-4">
-                    {[
-                      { id: '#ND-8812', name: 'Ritesh M. (Elite)', score: '9.4', status: 'Stable', color: 'emerald' },
-                      { id: '#ND-9021', name: 'Sonal G. (Essential)', score: '6.2', status: 'Requires Review', color: 'red' },
-                      { id: '#ND-7711', name: 'Aakash T. (Elite)', score: '8.8', status: 'Meal Swap', color: 'gold' }
-                    ].map((p, i) => (
-                      <div key={i} className="flex items-center justify-between p-5 bg-black/40 border border-white/5 rounded-2xl hover:border-white/20 transition-all group">
-                         <div className="flex items-center gap-6">
-                            <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-black text-gray-500">{p.id.slice(-2)}</div>
-                            <div>
-                               <p className="text-sm font-bold text-white">{p.name}</p>
-                               <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">NutriScore: {p.score}</p>
-                            </div>
-                         </div>
-                         <div className="flex items-center gap-12">
-                            <span className="text-[10px] font-black uppercase text-gray-500">{p.status}</span>
-                            <button className="p-3 bg-white/5 rounded-xl group-hover:bg-[#C5A358] group-hover:text-black transition-all"><ChevronRight size={14}/></button>
-                         </div>
-                      </div>
-                    ))}
-                 </div>
-              </div>
-
-              <div className="space-y-6">
-                 <div className="p-8 rounded-[2rem] bg-[#C5A358]/10 border border-[#C5A358]/20">
-                    <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#C5A358] mb-4">Total Revenue Generated</h5>
-                    <p className="text-4xl font-black text-white">₹12,450</p>
-                    <p className="text-[9px] font-bold text-gray-500 uppercase mt-4">From non-elite paid sessions</p>
-                 </div>
-                 <div className="p-8 rounded-[2rem] bg-white/5 border border-white/10">
-                    <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Expert Quick Links</h5>
-                    <div className="space-y-3">
-                       <button className="w-full text-left p-3 rounded-xl bg-black/40 text-[10px] font-bold text-gray-500 hover:text-white transition-all uppercase tracking-widest">Global Meal Log</button>
-                       <button className="w-full text-left p-3 rounded-xl bg-black/40 text-[10px] font-bold text-gray-500 hover:text-white transition-all uppercase tracking-widest">Clinical Audit Tool</button>
-                       <button className="w-full text-left p-3 rounded-xl bg-black/40 text-[10px] font-bold text-gray-500 hover:text-white transition-all uppercase tracking-widest">Staff Shift Manager</button>
+    <!-- VIEW: PLANS -->
+    <section id="view-plans" class="view-section pt-40 pb-32 px-6 max-w-7xl mx-auto">
+        <div class="text-center mb-20">
+            <h2 class="text-5xl font-black text-white mb-6 uppercase tracking-tighter">Tenure <span class="text-gold">Privileges.</span></h2>
+            <p class="text-gray-500 text-[10px] font-black uppercase tracking-[0.3em]">Special introductory discounts for short and long-term metabolic journeys</p>
+        </div>
+        <div class="grid lg:grid-cols-3 gap-8">
+            <!-- Monthly -->
+            <div class="p-10 rounded-[2.5rem] glass border-white/10 flex flex-col hover:border-gold/30 transition-all">
+                <h3 class="text-2xl font-bold text-white mb-8">Essential Monthly</h3>
+                <div class="mb-12">
+                    <div class="flex items-end gap-2">
+                        <span class="text-5xl font-black text-white">₹8,549</span>
+                        <span class="text-xs line-through text-gray-600 font-bold mb-2">₹8,999</span>
                     </div>
-                 </div>
-              </div>
-           </div>
-        </div>
-      )}
-
-      {/* VIEW: SPEND ANALYSIS */}
-      {view === 'analysis' && (
-        <div className="pt-40 pb-32 px-6 max-w-5xl mx-auto">
-          <div className="text-center mb-20">
-             <h2 className="text-5xl font-black text-white mb-6 uppercase tracking-tighter">Economic <span className="text-[#C5A358]">Nutri-Audit.</span></h2>
-             <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.3em]">Direct comparison of corporate junk loops vs. NutriDesk Investment</p>
-          </div>
-          <div className="grid md:grid-cols-2 gap-8">
-             <div className="p-10 rounded-[2.5rem] bg-white/5 border border-red-500/20">
-                <h3 className="text-red-500 font-black uppercase text-xs mb-8 tracking-widest">Industrial Habit Loop</h3>
-                <div className="space-y-4 mb-10">
-                   {[
-                     { l: 'Food Aggregator Delivery (Daily)', v: '₹1.4L' },
-                     { l: 'Lifestyle Disease Premiums', v: '₹42k' },
-                     { l: 'Productivity Sink (Lethargy)', v: '₹2.1L' }
-                   ].map((x, i) => (
-                     <div key={i} className="flex justify-between border-b border-white/5 pb-3">
-                        <span className="text-xs text-gray-500">{x.l}</span>
-                        <span className="text-sm font-bold text-white">{x.v}</span>
-                     </div>
-                   ))}
+                    <p class="text-[10px] text-emerald-500 font-black uppercase mt-2">Trial Month Discount</p>
                 </div>
-                <p className="text-right text-4xl font-black text-white">₹3,92,000<span className="text-xs text-red-500">/YR</span></p>
-             </div>
-             <div className="p-10 rounded-[2.5rem] bg-emerald-500/5 border border-emerald-500/20">
-                <h3 className="text-emerald-500 font-black uppercase text-xs mb-8 tracking-widest">NutriDesk Precision</h3>
-                <div className="space-y-4 mb-10">
-                   {[
-                     { l: 'Elite Annual Subscription', v: '₹71,999' },
-                     { l: 'Zero-Waste Carbon Credits', v: '-₹12k' },
-                     { l: 'Peak Cognitive Window', v: 'ROI: 8x' }
-                   ].map((x, i) => (
-                     <div key={i} className="flex justify-between border-b border-white/5 pb-3">
-                        <span className="text-xs text-gray-500">{x.l}</span>
-                        <span className="text-sm font-bold text-white">{x.v}</span>
-                     </div>
-                   ))}
+                <ul class="space-y-4 mb-12 flex-1 text-sm text-gray-400">
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle-2" class="text-gold w-4 h-4"></i> 22 Organic Meals</li>
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle-2" class="text-gold w-4 h-4"></i> Biodegradable Kit</li>
+                    <li class="flex items-center gap-3"><i data-lucide="stethoscope" class="text-gray-600 w-4 h-4"></i> Paid Consultations</li>
+                </ul>
+                <button onclick="subscribe('Essential Monthly', false)" class="w-full py-5 glass text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-white/10 transition-all">Subscribe</button>
+            </div>
+            <!-- Quarterly -->
+            <div class="p-10 rounded-[2.5rem] glass border-gold/40 relative ring-1 ring-gold/20 flex flex-col scale-105">
+                <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-gold text-black px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-xl">Most Efficient</div>
+                <h3 class="text-2xl font-bold text-white mb-8">Executive Quarterly</h3>
+                <div class="mb-12">
+                    <div class="flex items-end gap-2">
+                        <span class="text-5xl font-black text-white">₹21,249</span>
+                        <span class="text-xs line-through text-gray-600 font-bold mb-2">₹24,999</span>
+                    </div>
+                    <p class="text-[10px] text-gold font-black uppercase mt-2">Elite Status Unlocked</p>
                 </div>
-                <p className="text-right text-4xl font-black text-white">₹59,999<span className="text-xs text-emerald-500">/YR</span></p>
-             </div>
-          </div>
+                <ul class="space-y-4 mb-12 flex-1 text-sm text-gray-400">
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle-2" class="text-gold w-4 h-4"></i> 66 Organic Meals</li>
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle-2" class="text-gold w-4 h-4"></i> 15-Day Pause Option</li>
+                    <li class="flex items-center gap-3 text-gold font-bold"><i data-lucide="gem" class="w-4 h-4"></i> Free Clinical Consults</li>
+                </ul>
+                <button onclick="subscribe('Executive Quarterly', true)" class="w-full py-5 bg-gold text-black rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-all">Start Elite Journey</button>
+            </div>
+            <!-- Annual -->
+            <div class="p-10 rounded-[2.5rem] glass border-white/10 flex flex-col hover:border-gold/30 transition-all">
+                <h3 class="text-2xl font-bold text-white mb-8">Elite Annual</h3>
+                <div class="mb-12">
+                    <div class="flex items-end gap-2">
+                        <span class="text-5xl font-black text-white">₹71,999</span>
+                        <span class="text-xs line-through text-gray-600 font-bold mb-2">₹89,999</span>
+                    </div>
+                    <p class="text-[10px] text-emerald-500 font-black uppercase mt-2">20% Loyalty Saving</p>
+                </div>
+                <ul class="space-y-4 mb-12 flex-1 text-sm text-gray-400">
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle-2" class="text-gold w-4 h-4"></i> 264 Organic Meals</li>
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle-2" class="text-gold w-4 h-4"></i> Full Tenure Control</li>
+                    <li class="flex items-center gap-3 text-gold font-bold"><i data-lucide="gem" class="w-4 h-4"></i> Personal Health Concierge</li>
+                </ul>
+                <button onclick="subscribe('Elite Annual', true)" class="w-full py-5 glass text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-white/10 transition-all">Subscribe</button>
+            </div>
         </div>
-      )}
+    </section>
 
-      {/* MODALS */}
-      {modals.booking && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-           <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => toggleModal('booking', false)}></div>
-           <div className="relative w-full max-w-md bg-[#0F1115] border border-white/10 rounded-[2.5rem] p-10">
-              <div className="flex justify-between items-center mb-8">
-                 <h3 className="text-2xl font-black text-white">Schedule Consult</h3>
-                 <button onClick={() => toggleModal('booking', false)} className="p-2 rounded-full hover:bg-white/10"><X size={20}/></button>
-              </div>
-              <div className="space-y-6">
-                 {!activeSub?.isElite && (
-                   <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex justify-between items-center">
-                      <span className="text-[10px] font-black uppercase text-emerald-500 tracking-widest">Standard Appointment Fee</span>
-                      <span className="text-xl font-black text-white">₹750</span>
-                   </div>
-                 )}
-                 <div className="space-y-3">
-                    <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-2">Available Clinical Experts</p>
-                    {['Dr. Sneha V.', 'Dr. Arvind K.'].map((dr, i) => (
-                      <div key={i} onClick={() => setSelectedDietitian(dr)} className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center gap-3 ${selectedDietitian === dr ? 'border-[#C5A358] bg-[#C5A358]/10' : 'border-white/5 bg-white/5 hover:border-white/20'}`}>
-                         <UserCircle size={20} className={selectedDietitian === dr ? 'text-[#C5A358]' : 'text-gray-600'}/>
-                         <span className="text-xs font-bold">{dr}</span>
-                      </div>
-                    ))}
-                 </div>
-                 <button onClick={handleBooking} className="w-full py-5 bg-[#C5A358] text-black rounded-2xl font-black uppercase text-xs tracking-widest shadow-2xl shadow-[#C5A358]/20">Confirm Appointment</button>
-              </div>
-           </div>
-        </div>
-      )}
+    <!-- VIEW: CUSTOMER DASHBOARD -->
+    <section id="view-dashboard" class="view-section pt-40 pb-32 px-6 max-w-7xl mx-auto">
+        <div class="grid lg:grid-cols-3 gap-10">
+            <div class="lg:col-span-2 space-y-8">
+                <div class="p-10 rounded-[2.5rem] glass-gold relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-8"><i data-lucide="gem" class="text-gold opacity-10 w-20 h-20"></i></div>
+                    <div class="relative z-10">
+                        <p id="portal-tier-badge" class="text-[10px] font-black text-gold uppercase tracking-[0.3em] mb-4">Elite Personal Health Portal</p>
+                        <h2 id="portal-sub-name" class="text-4xl font-black text-white mb-8 uppercase tracking-tighter">Executive Quarterly</h2>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="p-5 rounded-2xl bg-black/40 border border-white/5 text-center">
+                                <p class="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-2">NutriScore</p>
+                                <p class="text-2xl font-black text-emerald-500">9.4<span class="text-xs text-gray-600">/10</span></p>
+                            </div>
+                            <div class="p-5 rounded-2xl bg-black/40 border border-white/5 text-center">
+                                <p class="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-2">Meals Remaining</p>
+                                <p class="text-2xl font-black text-white">42</p>
+                            </div>
+                            <div class="p-5 rounded-2xl bg-black/40 border border-white/5 text-center">
+                                <p class="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-2">Health ROI</p>
+                                <p class="text-2xl font-black text-gold">14x</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-      {/* SUCCESS TOAST */}
-      {modals.success && (
-        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[200] animate-in slide-in-from-top duration-500">
-           <div className="bg-emerald-500 text-black px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-2xl flex items-center gap-3">
-              <CheckCircle2 size={16}/> Appointment Confirmed! Check your email.
-           </div>
-        </div>
-      )}
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="p-8 rounded-3xl glass">
+                        <h4 class="font-black text-white uppercase tracking-widest flex items-center gap-3 mb-6"><i data-lucide="activity" class="text-emerald-500"></i> Clinical Trend</h4>
+                        <div class="h-40 flex items-end gap-2 mb-4">
+                            <div class="flex-1 bg-emerald-500/20 rounded-t-lg h-[40%]"></div>
+                            <div class="flex-1 bg-emerald-500/20 rounded-t-lg h-[60%]"></div>
+                            <div class="flex-1 bg-emerald-500/20 rounded-t-lg h-[80%]"></div>
+                            <div class="flex-1 bg-emerald-500/60 rounded-t-lg h-[95%] shadow-lg shadow-emerald-500/20"></div>
+                            <div class="flex-1 bg-emerald-500/20 rounded-t-lg h-[70%]"></div>
+                        </div>
+                        <p class="text-[9px] font-bold text-gray-500 text-center uppercase tracking-widest">Metabolic Stability Index</p>
+                    </div>
+                    <div class="p-8 rounded-3xl glass flex flex-col">
+                        <h4 class="font-black text-white uppercase tracking-widest flex items-center gap-3 mb-6"><i data-lucide="stethoscope" class="text-gold"></i> Clinical Concierge</h4>
+                        <p id="concierge-desc" class="text-xs text-gray-500 leading-relaxed mb-8">Complimentary clinical consultations included in your Elite tenure.</p>
+                        <button onclick="toggleModal('booking', true)" class="mt-auto w-full py-4 glass border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">Schedule Consultation</button>
+                    </div>
+                </div>
+            </div>
 
-      {/* CHAT MODAL */}
-      {modals.chat && (
-        <div className="fixed bottom-10 right-10 z-[100] w-[350px] animate-in slide-in-from-bottom duration-500">
-           <div className="bg-[#0F1115] border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl">
-              <div className="bg-emerald-500 p-6 flex justify-between items-center text-black">
-                 <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 bg-black rounded-full animate-pulse"></div>
-                    <span className="font-black uppercase text-xs tracking-widest">Clinical Support</span>
-                 </div>
-                 <button onClick={() => toggleModal('chat', false)}><X size={18}/></button>
-              </div>
-              <div className="h-64 p-6 overflow-y-auto bg-black/20 text-xs space-y-4">
-                 <div className="p-3 bg-white/5 rounded-2xl rounded-tl-none mr-8 text-gray-400">Hello! Dr. Sneha here. How can I assist with your metabolic audit today?</div>
-              </div>
-              <div className="p-4 bg-white/5 border-t border-white/5 flex gap-2">
-                 <input className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-xs outline-none focus:border-[#C5A358]" placeholder="Type message..."/>
-                 <button className="p-2 bg-[#C5A358] text-black rounded-xl"><ArrowRight size={16}/></button>
-              </div>
-           </div>
+            <div class="space-y-8">
+                <div class="p-8 rounded-3xl glass border-gold/20">
+                    <h4 class="font-black text-white uppercase tracking-widest mb-6">Logistics Hub</h4>
+                    <div class="flex items-center gap-4 p-4 rounded-2xl bg-black/40 border border-white/5 mb-6">
+                        <div class="p-2 bg-emerald-500/20 text-emerald-500 rounded-lg"><i data-lucide="package"></i></div>
+                        <div>
+                           <p class="text-xs font-bold text-white">Next Meal: 08:30 AM</p>
+                           <p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Kavuri Hills Kitchen</p>
+                        </div>
+                    </div>
+                    <button id="pause-btn" onclick="togglePause()" class="w-full py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all bg-white/5 text-gold border border-gold/20 hover:bg-gold/10">
+                        Pause Subscription
+                    </button>
+                </div>
+                <div class="p-8 rounded-3xl bg-emerald-600 text-white">
+                    <h4 class="font-black text-xl mb-2 tracking-tighter uppercase">Direct Support</h4>
+                    <p class="text-xs opacity-80 mb-8 font-medium">Encrypted line to clinical staff for protocol adjustments.</p>
+                    <button onclick="toggleModal('chat', true)" class="w-full py-4 bg-black rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2">
+                        <i data-lucide="message-square" class="w-4 h-4"></i> Live Chat
+                    </button>
+                </div>
+            </div>
         </div>
-      )}
+    </section>
 
-      {/* FOOTER */}
-      <footer className="bg-[#0A0C10] pt-32 pb-12 px-6 border-t border-white/5 relative overflow-hidden">
-        <div className="max-w-7xl mx-auto grid md:grid-cols-4 gap-12 mb-20 relative z-10">
-          <div className="col-span-1">
-             <div className="flex items-center gap-2 mb-8">
-               <Leaf className="text-emerald-500 w-6 h-6" />
-               <span className="text-xl font-black text-white uppercase tracking-tighter">NUTRI<span className="text-[#C5A358]">DESK</span></span>
-             </div>
-             <p className="text-xs text-gray-500 font-medium leading-relaxed uppercase tracking-widest opacity-60">Madhapur, Hitech City,<br/>Hyderabad - 500033</p>
-          </div>
-          <div>
-            <h4 className="text-[10px] font-black text-white uppercase tracking-[0.3em] mb-8">Ecosystem</h4>
-            <ul className="space-y-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-              <li className="hover:text-white cursor-pointer transition-all">Clinical Audit</li>
-              <li className="hover:text-white cursor-pointer transition-all">Bio-Glass Tech</li>
-              <li className="hover:text-white cursor-pointer transition-all">Metabolic Data</li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-[10px] font-black text-white uppercase tracking-[0.3em] mb-8">Compliance</h4>
-            <ul className="space-y-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-              <li className="hover:text-white cursor-pointer transition-all">FSSAI: 1362XXX</li>
-              <li className="hover:text-white cursor-pointer transition-all">GST 5% Net</li>
-              <li className="hover:text-white cursor-pointer transition-all">CIN Registry</li>
-            </ul>
-          </div>
-          <div className="flex gap-4 items-start">
-             <div className="p-3 bg-white/5 border border-white/10 rounded-xl hover:text-white cursor-pointer transition-all"><Instagram size={18}/></div>
-             <div className="p-3 bg-white/5 border border-white/10 rounded-xl hover:text-white cursor-pointer transition-all"><Linkedin size={18}/></div>
-          </div>
+    <!-- VIEW: CLINICAL EXPERT PANEL -->
+    <section id="view-clinical" class="view-section pt-40 pb-32 px-6 max-w-7xl mx-auto">
+        <div class="flex justify-between items-end mb-12">
+            <div>
+                <p class="text-gold text-[10px] font-black uppercase tracking-[0.3em] mb-2">Clinical Staff Command</p>
+                <h2 class="text-5xl font-black text-white uppercase tracking-tighter">Dietitian <span class="text-emerald-500">Panel.</span></h2>
+            </div>
+            <div class="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10">
+                <div class="text-right">
+                    <p class="text-sm font-black text-white">Dr. Arvind Krishna</p>
+                    <p class="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Senior Clinical Expert</p>
+                </div>
+                <div class="w-12 h-12 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center"><i data-lucide="stethoscope"></i></div>
+            </div>
         </div>
-        <div className="max-w-7xl mx-auto pt-8 border-t border-white/5 flex justify-between items-center text-[8px] font-bold text-gray-700 uppercase tracking-[0.4em]">
-           <span>© 2024 NutriDesk Pvt Ltd. All Clinical Data Encrypted.</span>
-           <div className="flex gap-4"><Bell size={12}/><Activity size={12}/></div>
+
+        <div class="grid lg:grid-cols-4 gap-10">
+            <div class="lg:col-span-3 p-10 rounded-[2.5rem] glass">
+                <div class="flex justify-between items-center mb-10">
+                    <h4 class="text-sm font-black text-white uppercase tracking-widest flex items-center gap-3"><i data-lucide="clipboard-list" class="w-5 h-5 text-gold"></i> Patient Load Management</h4>
+                    <span class="px-4 py-1.5 bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase rounded-full">14 Consults Pending</span>
+                </div>
+                <div class="space-y-4">
+                    <div class="p-5 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between hover:border-gold/30 transition-all cursor-pointer group">
+                        <div class="flex items-center gap-6">
+                            <div class="w-10 h-10 rounded-full bg-black flex items-center justify-center text-[10px] font-black text-gold">EL</div>
+                            <div>
+                                <p class="text-sm font-bold text-white">Ritesh Mehra (Elite)</p>
+                                <p class="text-[10px] font-bold text-gray-600 uppercase">Marker: Glucose Stability High</p>
+                            </div>
+                        </div>
+                        <button class="p-3 bg-white/5 rounded-xl group-hover:bg-gold group-hover:text-black transition-all"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+                    </div>
+                    <div class="p-5 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between hover:border-gold/30 transition-all cursor-pointer group">
+                        <div class="flex items-center gap-6">
+                            <div class="w-10 h-10 rounded-full bg-black flex items-center justify-center text-[10px] font-black text-gray-500">ST</div>
+                            <div>
+                                <p class="text-sm font-bold text-white">Sonal Gupta (Essential)</p>
+                                <p class="text-[10px] font-bold text-emerald-500 uppercase">Paid Consultation Booked</p>
+                            </div>
+                        </div>
+                        <button class="p-3 bg-white/5 rounded-xl group-hover:bg-gold group-hover:text-black transition-all"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div class="space-y-8">
+                <div class="p-8 rounded-3xl glass-gold">
+                    <p class="text-[10px] font-black text-gold uppercase tracking-widest mb-4">Total Fees Collected</p>
+                    <p class="text-3xl font-black text-white">₹14,250</p>
+                    <p class="text-[9px] font-bold text-gray-500 uppercase mt-4">From Standard Tier Consults</p>
+                </div>
+                <div class="p-8 rounded-3xl glass">
+                    <h5 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">Operational Logs</h5>
+                    <div class="space-y-4">
+                        <div class="flex gap-4 items-start">
+                            <div class="w-2 h-2 rounded-full bg-emerald-500 mt-1"></div>
+                            <p class="text-[10px] font-medium text-gray-500 uppercase">Kitchen protocol updated: Batch #9</p>
+                        </div>
+                        <div class="flex gap-4 items-start">
+                            <div class="w-2 h-2 rounded-full bg-gold mt-1"></div>
+                            <p class="text-[10px] font-medium text-gray-500 uppercase">Metabolic audit complete: User #812</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </footer>
+    </section>
+
+    <!-- VIEW: ANALYSIS -->
+    <section id="view-analysis" class="view-section pt-40 pb-32 px-6 max-w-5xl mx-auto">
+        <div class="text-center mb-20">
+            <h2 class="text-5xl font-black text-white mb-6 uppercase tracking-tighter">Economic <span class="text-gold">Audit.</span></h2>
+            <p class="text-gray-500 text-[10px] font-black uppercase tracking-[0.3em]">Cost comparison of corporate junk loops vs. NutriDesk Investment</p>
+        </div>
+        <div class="grid md:grid-cols-2 gap-8">
+            <div class="p-10 rounded-[2.5rem] glass border-red-500/20">
+                <h4 class="text-red-500 font-black text-[10px] uppercase tracking-widest mb-8">Industrial Habit Loop</h4>
+                <div class="space-y-4 mb-10 text-xs font-medium text-gray-400">
+                    <div class="flex justify-between border-b border-white/5 pb-3"><span>Aggregator Food Spend</span><span class="text-white font-bold">₹1.4L</span></div>
+                    <div class="flex justify-between border-b border-white/5 pb-3"><span>Sugar-Crash Productivity Loss</span><span class="text-white font-bold">₹2.1L</span></div>
+                    <div class="flex justify-between border-b border-white/5 pb-3"><span>Healthcare Premiums</span><span class="text-white font-bold">₹42k</span></div>
+                </div>
+                <p class="text-right text-4xl font-black text-white">₹3,92,000<span class="text-xs text-red-500">/YR</span></p>
+            </div>
+            <div class="p-10 rounded-[2.5rem] glass-gold">
+                <h4 class="text-gold font-black text-[10px] uppercase tracking-widest mb-8">NutriDesk Protocol</h4>
+                <div class="space-y-4 mb-10 text-xs font-medium text-gray-400">
+                    <div class="flex justify-between border-b border-white/5 pb-3"><span>Elite Annual Subscription</span><span class="text-white font-bold">₹71,999</span></div>
+                    <div class="flex justify-between border-b border-white/5 pb-3"><span>Carbon Offsets (Plastic-Free)</span><span class="text-white font-bold">-₹14k</span></div>
+                    <div class="flex justify-between border-b border-white/5 pb-3"><span>Peak Performance ROI</span><span class="text-white font-bold">8.4x</span></div>
+                </div>
+                <p class="text-right text-4xl font-black text-white">₹57,999<span class="text-xs text-gold">/YR</span></p>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="bg-[#0A0C10] pt-32 pb-12 px-6 border-t border-white/5 mt-20">
+        <div class="max-w-7xl mx-auto grid md:grid-cols-4 gap-12 mb-20 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+            <div>
+                <div class="flex items-center gap-2 mb-8 text-white">
+                    <i data-lucide="leaf" class="text-emerald-500 w-6 h-6"></i>
+                    <span class="text-xl font-black tracking-tighter">NUTRI<span class="text-gold">DESK</span></span>
+                </div>
+                <p class="opacity-60 leading-loose">Madhapur Central Kitchen,<br/>Hitech City, Hyderabad - 33</p>
+            </div>
+            <div>
+                <h4 class="text-white mb-8">Ecosystem</h4>
+                <p class="mb-4 cursor-pointer hover:text-white transition-all">Clinical Audit</p>
+                <p class="mb-4 cursor-pointer hover:text-white transition-all">Metabolic Data</p>
+            </div>
+            <div>
+                <h4 class="text-white mb-8">Compliance</h4>
+                <p class="mb-4 cursor-pointer hover:text-white transition-all">FSSAI: 1362XXX</p>
+                <p class="mb-4 cursor-pointer hover:text-white transition-all">GST 5% Net</p>
+            </div>
+            <div class="flex gap-4">
+                <div class="p-3 glass rounded-xl hover:text-gold cursor-pointer transition-all"><i data-lucide="instagram"></i></div>
+                <div class="p-3 glass rounded-xl hover:text-gold cursor-pointer transition-all"><i data-lucide="linkedin"></i></div>
+            </div>
+        </div>
+        <div class="max-w-7xl mx-auto pt-8 border-t border-white/5 flex justify-between items-center text-[8px] font-black text-gray-800 uppercase tracking-[0.4em]">
+            <span>© 2024 NutriDesk Pvt Ltd. Clinical Infrastructure.</span>
+            <div class="flex gap-4"><i data-lucide="bell" class="w-3 h-3"></i> <i data-lucide="shield-check" class="w-3 h-3"></i></div>
+        </div>
+    </footer>
+
+    <!-- MODAL: BOOKING -->
+    <div id="modal-booking" class="fixed inset-0 z-[100] hidden items-center justify-center px-6">
+        <div class="absolute inset-0 bg-black/90 backdrop-blur-md" onclick="toggleModal('booking', false)"></div>
+        <div class="relative w-full max-w-md bg-[#0F1115] border border-white/10 p-10 rounded-[2.5rem] shadow-2xl">
+            <div class="flex justify-between items-center mb-8">
+                <h3 class="text-2xl font-black text-white">Schedule Consult</h3>
+                <button onclick="toggleModal('booking', false)" class="text-gray-500 hover:text-white"><i data-lucide="x"></i></button>
+            </div>
+            <div id="booking-fee-area" class="p-5 glass rounded-2xl mb-8 flex justify-between items-center">
+                <span class="text-[10px] font-black text-gold uppercase tracking-widest">Appointment Fee</span>
+                <span class="text-xl font-black text-white">₹750</span>
+            </div>
+            <div id="booking-free-area" class="p-5 glass-gold rounded-2xl mb-8 hidden flex justify-between items-center border-gold/40">
+                <span class="text-[10px] font-black text-gold uppercase tracking-widest">Elite Benefit</span>
+                <span class="text-lg font-black text-gold uppercase">FREE</span>
+            </div>
+            <div class="space-y-4 mb-8">
+                <p class="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Select Expert</p>
+                <div class="p-4 bg-white/5 rounded-xl border border-white/5 flex items-center gap-4 cursor-pointer hover:border-gold/40 transition-all border-gold">
+                    <div class="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center"><i data-lucide="user-circle"></i></div>
+                    <div><p class="text-xs font-bold text-white">Dr. Sneha V.</p><p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Metabolic Specialist</p></div>
+                </div>
+            </div>
+            <button onclick="confirmBooking()" class="w-full py-5 bg-gold text-black rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-2xl shadow-gold/20">Confirm Appointment</button>
+        </div>
     </div>
-  );
-}
+
+    <!-- MODAL: CHAT -->
+    <div id="modal-chat" class="fixed bottom-10 right-10 z-[100] w-80 hidden">
+        <div class="glass rounded-[2rem] overflow-hidden shadow-2xl border-gold/20">
+            <div class="bg-emerald-500 p-5 flex justify-between items-center text-black">
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 bg-black rounded-full animate-pulse"></div>
+                    <span class="text-[10px] font-black uppercase tracking-widest">Clinical Support</span>
+                </div>
+                <button onclick="toggleModal('chat', false)"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="h-60 p-6 bg-black/40 overflow-y-auto hide-scroll text-[11px] text-gray-400">
+                <div class="mb-4 p-3 bg-white/5 rounded-2xl rounded-tl-none border border-white/5">Hello! Dr. Sneha here. Ready for your metabolic audit?</div>
+            </div>
+            <div class="p-4 border-t border-white/5 flex gap-2">
+                <input type="text" placeholder="Type..." class="flex-1 bg-white/5 rounded-xl px-4 py-2 text-xs outline-none focus:border-gold border border-white/5">
+                <button class="bg-gold p-2 rounded-xl text-black transition-all hover:scale-110"><i data-lucide="arrow-right" class="w-4 h-4"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUCCESS NOTIFICATION -->
+    <div id="notification" class="fixed top-10 left-1/2 -translate-x-1/2 z-[200] hidden">
+        <div class="bg-emerald-500 text-black px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-2xl flex items-center gap-3">
+            <i data-lucide="check-circle-2" class="w-4 h-4"></i> Appointment Confirmed!
+        </div>
+    </div>
+
+    <script>
+        // --- CENTRAL STATE ---
+        let state = {
+            currentView: 'home',
+            userRole: 'customer', // 'customer' | 'dietitian'
+            activeSub: null,
+            isElite: false,
+            isPaused: false
+        };
+
+        // --- NAVIGATION LOGIC ---
+        function showView(viewName) {
+            // Update Section Visibility
+            document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+            document.getElementById(`view-${viewName}`).classList.add('active');
+            
+            // Update Active Nav Link styling
+            document.querySelectorAll('.nav-link').forEach(l => {
+                l.classList.remove('text-gold');
+                l.classList.add('text-gray-400');
+            });
+            
+            // Scroll to top
+            window.scrollTo(0, 0);
+            state.currentView = viewName;
+
+            // Handle Navbar Background
+            const nav = document.getElementById('navbar');
+            if(viewName !== 'home') {
+                nav.classList.add('top-0');
+                nav.classList.remove('top-4');
+            } else if (window.scrollY < 50) {
+                nav.classList.remove('top-0');
+                nav.classList.add('top-4');
+            }
+        }
+
+        // --- ROLE MANAGEMENT ---
+        function toggleUserRole() {
+            state.userRole = state.userRole === 'customer' ? 'dietitian' : 'customer';
+            const btnText = document.getElementById('role-toggle-text');
+            
+            if(state.userRole === 'dietitian') {
+                showView('clinical');
+                btnText.innerText = "User View";
+            } else {
+                showView('home');
+                btnText.innerText = "Expert Access";
+            }
+        }
+
+        // --- SUBSCRIPTION LOGIC ---
+        function subscribe(name, elite) {
+            state.activeSub = name;
+            state.isElite = elite;
+            
+            // Update Portal UI
+            document.getElementById('portal-sub-name').innerText = name;
+            document.getElementById('dashboard-nav-btn').classList.remove('hidden');
+            document.getElementById('join-nav-btn').classList.add('hidden');
+            
+            const badge = document.getElementById('portal-tier-badge');
+            const desc = document.getElementById('concierge-desc');
+            const bookingFee = document.getElementById('booking-fee-area');
+            const bookingFree = document.getElementById('booking-free-area');
+
+            if(elite) {
+                badge.innerText = "Elite Personal Health Portal";
+                badge.className = "text-[10px] font-black text-gold uppercase tracking-[0.3em] mb-4";
+                desc.innerText = "Complimentary clinical consultations included in your Elite tenure.";
+                bookingFee.classList.add('hidden');
+                bookingFree.classList.remove('hidden');
+            } else {
+                badge.innerText = "Standard Health Portal";
+                badge.className = "text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-4";
+                desc.innerText = "Book one-on-one sessions with our clinical dietitians for a focused metabolic audit.";
+                bookingFee.classList.remove('hidden');
+                bookingFree.classList.add('hidden');
+            }
+
+            showView('dashboard');
+        }
+
+        function togglePause() {
+            state.isPaused = !state.isPaused;
+            const btn = document.getElementById('pause-btn');
+            if(state.isPaused) {
+                btn.innerHTML = '<i data-lucide="play" class="w-3 h-3 inline mr-2"></i> Resume Delivery';
+                btn.className = "w-full py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all bg-emerald-500 text-white shadow-lg shadow-emerald-500/20";
+            } else {
+                btn.innerHTML = '<i data-lucide="pause" class="w-3 h-3 inline mr-2"></i> Pause Subscription';
+                btn.className = "w-full py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all bg-white/5 text-gold border border-gold/20 hover:bg-gold/10";
+            }
+            lucide.createIcons();
+        }
+
+        // --- UI UTILS ---
+        function toggleModal(name, show) {
+            const modal = document.getElementById(`modal-${name}`);
+            if(show) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } else {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        function confirmBooking() {
+            toggleModal('booking', false);
+            const notify = document.getElementById('notification');
+            notify.classList.remove('hidden');
+            setTimeout(() => notify.classList.add('hidden'), 3000);
+        }
+
+        // --- INITIALIZATION ---
+        window.onload = () => {
+            lucide.createIcons();
+            
+            // Navbar Scroll Effect
+            window.addEventListener('scroll', () => {
+                const nav = document.getElementById('navbar');
+                if (window.scrollY > 50 || state.currentView !== 'home') {
+                    nav.classList.add('top-0');
+                    nav.classList.remove('top-4');
+                } else {
+                    nav.classList.remove('top-0');
+                    nav.classList.add('top-4');
+                }
+            });
+        };
+    </script>
+</body>
+</html>
